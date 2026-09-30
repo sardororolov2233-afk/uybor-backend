@@ -22,7 +22,7 @@ bot.start((ctx) => {
   ctx.reply(
     'Uybor ga xush kelibsiz! 🏠\nE\'lonlarni ko\'rish uchun quyidagi tugmani bosing.',
     Markup.inlineKeyboard([
-      Markup.button.webApp('Uybor ni ochish', 'https://uybor-miniapp.example.com')
+      Markup.button.webApp('Uybor ni ochish', 'https://frontend-gules-tau-81.vercel.app')
     ])
   );
 });

@@ -19,7 +19,7 @@ const botToken = process.env.BOT_TOKEN || 'dummy_token_for_dev';
 const bot = new telegraf_1.Telegraf(botToken);
 bot.start((ctx) => {
     ctx.reply('Uybor ga xush kelibsiz! 🏠\nE\'lonlarni ko\'rish uchun quyidagi tugmani bosing.', telegraf_1.Markup.inlineKeyboard([
-        telegraf_1.Markup.button.webApp('Uybor ni ochish', 'https://uybor-miniapp.example.com')
+        telegraf_1.Markup.button.webApp('Uybor ni ochish', 'https://frontend-gules-tau-81.vercel.app')
     ]));
 });
 bot.launch().then(() => {
