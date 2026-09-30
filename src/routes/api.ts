@@ -5,6 +5,9 @@ import { getFavorites, addFavorite, removeFavorite } from '../controllers/favori
 import { aiChat, saveUserPreferences, verifyReceiptPayment, getUserPreferences } from '../controllers/ai.controller';
 import { authMiddleware } from '../middlewares/authMiddleware';
 
+import multer from 'multer';
+const upload = multer({ storage: multer.memoryStorage() });
+
 const router = Router();
 
 // Auth
@@ -15,9 +18,9 @@ router.get('/listings', getListings);
 router.get('/listings/:id', getListingById);
 
 // Protected Listings
-router.post('/listings', authMiddleware, createListing);
+router.post('/listings', authMiddleware, upload.array('images', 5), createListing);
 router.get('/users/me/listings', authMiddleware, getMyListings);
-router.put('/listings/:id', authMiddleware, updateListing);
+router.put('/listings/:id', authMiddleware, upload.array('images', 5), updateListing);
 router.delete('/listings/:id', authMiddleware, deleteListing);
 
 // Favorites

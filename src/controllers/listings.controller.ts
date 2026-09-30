@@ -47,41 +47,35 @@ export const createListing = async (req: AuthRequest, res: Response) => {
     const user_id = req.user?.id;
     if (!user_id) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { title, description, price, currency, category, property_type, rooms, area, address, lat, lon, images } = req.body;
-
+    const { title, description, price, currency, category, property_type, rooms, area, address, lat, lon } = req.body;
+    
     let uploadedImageUrls: string[] = [];
 
-    // Base64 rasmlarni Supabase Storage'ga yuklash
-    if (images && Array.isArray(images)) {
-      for (const img of images) {
-        if (img.startsWith('data:image')) {
-          try {
-            const matches = img.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-            if (matches && matches.length === 3) {
-              const mimeType = matches[1];
-              const base64Data = matches[2];
-              const buffer = Buffer.from(base64Data, 'base64');
-              const ext = mimeType.split('/')[1] || 'jpeg';
-              const fileName = `listings/${user_id}_${Date.now()}_${Math.floor(Math.random()*1000)}.${ext}`;
-              
-              const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('listing-images')
-                .upload(fileName, buffer, {
-                  contentType: mimeType,
-                  upsert: false
-                });
+    // Multer orqali yuklangan fayllarni Supabase Storage'ga yuklash
+    const files = req.files as Express.Multer.File[];
+    if (files && files.length > 0) {
+      for (const file of files) {
+        try {
+          const mimeType = file.mimetype;
+          const buffer = file.buffer;
+          const ext = mimeType.split('/')[1] || 'jpeg';
+          const fileName = `listings/${user_id}_${Date.now()}_${Math.floor(Math.random()*1000)}.${ext}`;
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('listing-images')
+            .upload(fileName, buffer, {
+              contentType: mimeType,
+              upsert: false
+            });
 
-              if (!uploadError && uploadData) {
-                const { data: publicUrlData } = supabase.storage.from('listing-images').getPublicUrl(fileName);
-                uploadedImageUrls.push(publicUrlData.publicUrl);
-              }
-            }
-          } catch (e) {
-            console.error('Image upload error:', e);
-            uploadedImageUrls.push(img); // Xatolik bo'lsa base64 ni o'zini qoldiramiz (fallback)
+          if (!uploadError && uploadData) {
+            const { data: publicUrlData } = supabase.storage.from('listing-images').getPublicUrl(fileName);
+            uploadedImageUrls.push(publicUrlData.publicUrl);
+          } else {
+            console.error('Supabase upload error:', uploadError);
           }
-        } else {
-          uploadedImageUrls.push(img); // Agar u oldin yuklangan URL bo'lsa
+        } catch (e) {
+          console.error('Image upload processing error:', e);
         }
       }
     }
@@ -210,40 +204,44 @@ export const updateListing = async (req: AuthRequest, res: Response) => {
     }
 
     const { title, description, price, currency, category, property_type,
-            rooms, area, address, lat, lon, images, status } = req.body;
+            rooms, area, address, lat, lon, status } = req.body;
+            
+    // req.body.existingImages string yoki string[] bo'lishi mumkin
+    let existingImages: string[] = [];
+    if (req.body.existingImages) {
+      if (Array.isArray(req.body.existingImages)) {
+        existingImages = req.body.existingImages;
+      } else {
+        existingImages = [req.body.existingImages];
+      }
+    }
 
-    let uploadedImageUrls: string[] = [];
+    let uploadedImageUrls: string[] = [...existingImages];
 
-    if (images && Array.isArray(images)) {
-      for (const img of images) {
-        if (img.startsWith('data:image')) {
-          try {
-            const matches = img.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-            if (matches && matches.length === 3) {
-              const mimeType = matches[1];
-              const base64Data = matches[2];
-              const buffer = Buffer.from(base64Data, 'base64');
-              const ext = mimeType.split('/')[1] || 'jpeg';
-              const fileName = `listings/${user_id}_${Date.now()}_${Math.floor(Math.random()*1000)}.${ext}`;
-              
-              const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('listing-images')
-                .upload(fileName, buffer, {
-                  contentType: mimeType,
-                  upsert: false
-                });
+    const files = req.files as Express.Multer.File[];
+    if (files && files.length > 0) {
+      for (const file of files) {
+        try {
+          const mimeType = file.mimetype;
+          const buffer = file.buffer;
+          const ext = mimeType.split('/')[1] || 'jpeg';
+          const fileName = `listings/${user_id}_${Date.now()}_${Math.floor(Math.random()*1000)}.${ext}`;
+          
+          const { data: uploadData, error: uploadError } = await supabase.storage
+            .from('listing-images')
+            .upload(fileName, buffer, {
+              contentType: mimeType,
+              upsert: false
+            });
 
-              if (!uploadError && uploadData) {
-                const { data: publicUrlData } = supabase.storage.from('listing-images').getPublicUrl(fileName);
-                uploadedImageUrls.push(publicUrlData.publicUrl);
-              }
-            }
-          } catch (e) {
-            console.error('Image upload error:', e);
-            uploadedImageUrls.push(img);
+          if (!uploadError && uploadData) {
+            const { data: publicUrlData } = supabase.storage.from('listing-images').getPublicUrl(fileName);
+            uploadedImageUrls.push(publicUrlData.publicUrl);
+          } else {
+            console.error('Supabase upload error:', uploadError);
           }
-        } else {
-          uploadedImageUrls.push(img); // Already a URL
+        } catch (e) {
+          console.error('Image upload processing error:', e);
         }
       }
     }
@@ -253,7 +251,7 @@ export const updateListing = async (req: AuthRequest, res: Response) => {
       .update({
         title, description, price, currency, category, property_type,
         rooms, area, address, lat, lon, 
-        ...(images ? { images: uploadedImageUrls } : {}), 
+        images: uploadedImageUrls,
         status
       })
       .eq('id', id)
