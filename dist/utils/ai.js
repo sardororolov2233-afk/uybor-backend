@@ -195,7 +195,7 @@ Qoidalar:
     catch (error) {
         console.error('chatWithAI xatosi:', error);
         return {
-            text: 'Kechirasiz, hozirda AI xizmatida vaqtinchalik uzilish bo\'ldi. Iltimos, birozdan so\'ng qayta urinib ko\'ring.',
+            text: `Kechirasiz, so'rovda xatolik yuz berdi (${error?.message || 'aloqa xatosi'}). Iltimos, qayta urinib ko'ring.`,
             recommendedListingIds: [],
         };
     }
