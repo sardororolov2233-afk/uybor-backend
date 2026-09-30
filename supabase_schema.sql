@@ -68,3 +68,40 @@ CREATE TRIGGER update_listings_updated_at
 BEFORE UPDATE ON public.listings
 FOR EACH ROW
 EXECUTE FUNCTION update_updated_at_column();
+
+-- 7. User Preferences (Foydalanuvchi qidiruv talablari - AI orqali saralash uchun)
+CREATE TABLE IF NOT EXISTS public.user_preferences (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  telegram_id BIGINT NOT NULL,
+  category TEXT, -- RENT, SALE
+  property_type TEXT, -- APARTMENT, HOUSE, etc.
+  min_price NUMERIC,
+  max_price NUMERIC,
+  currency TEXT DEFAULT 'USD',
+  rooms INTEGER,
+  district TEXT, -- Chilonzor, Yunusobod, etc.
+  raw_prompt TEXT, -- Masalan: "Chilonzordan 400$ gacha 2 xonali uy kerak"
+  is_active BOOLEAN DEFAULT true,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 8. Payments (To'lov cheklari va AI orqali tekshirish natijalari)
+CREATE TABLE IF NOT EXISTS public.payments (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  telegram_id BIGINT NOT NULL,
+  listing_id UUID REFERENCES public.listings(id) ON DELETE SET NULL,
+  receipt_image_url TEXT NOT NULL,
+  amount NUMERIC,
+  currency TEXT DEFAULT 'UZS',
+  transaction_time TEXT,
+  card_last_four TEXT,
+  sender_recipient TEXT,
+  transaction_id TEXT,
+  status TEXT DEFAULT 'PENDING', -- PENDING, APPROVED, REJECTED
+  ai_analysis JSONB DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+

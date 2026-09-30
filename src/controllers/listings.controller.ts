@@ -71,12 +71,71 @@ export const createListing = async (req: AuthRequest, res: Response) => {
       .single();
 
     if (error) throw error;
+
+    // Mos keluvchi foydalanuvchilarga bot orqali bildirishnoma yuborish
+    notifyMatchingUsers(data).catch(err => console.error('notifyMatchingUsers error:', err));
+
     res.status(201).json(data);
   } catch (error: any) {
     console.error('Error creating listing:', error);
     res.status(500).json({ error: error.message || 'Internal server error' });
   }
 };
+
+/**
+ * Yangi e'lon qo'shilganda uning parametrlariga mos keluvchi foydalanuvchilar lichkasiga Telegram xabar yuborish
+ */
+async function notifyMatchingUsers(listing: any) {
+  try {
+    const { data: preferences } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .eq('is_active', true);
+
+    if (!preferences || preferences.length === 0) return;
+
+    const { bot } = await import('../index');
+
+    for (const pref of preferences) {
+      // 1. Kategoriya mosligi
+      if (pref.category && pref.category !== listing.category) continue;
+      // 2. Mulk turi mosligi
+      if (pref.property_type && pref.property_type !== listing.property_type) continue;
+      // 3. Xonalar soni
+      if (pref.rooms && pref.rooms !== listing.rooms) continue;
+      // 4. Maksimal narx
+      if (pref.max_price && Number(listing.price) > Number(pref.max_price)) continue;
+      // 5. Minimal narx
+      if (pref.min_price && Number(listing.price) < Number(pref.min_price)) continue;
+
+      // Agar barcha mezonlar to'g'ri kelsa, Telegram lichkasiga yuborish
+      if (bot && pref.telegram_id) {
+        const text = `🔔 <b>Siz qidirgan yangi e'lon qo'shildi!</b>\n\n` +
+          `🏠 <b>${listing.title}</b>\n` +
+          `💰 <b>Narxi:</b> ${listing.price} ${listing.currency}\n` +
+          `🚪 <b>Xonalar:</b> ${listing.rooms} xona\n` +
+          `📍 <b>Manzil:</b> ${listing.address || 'Ko\'rsatilmagan'}\n\n` +
+          `<i>Sizning qidiruv talabingiz: "${pref.raw_prompt || 'Saqlangan mezon'}"</i>`;
+
+        await bot.telegram.sendMessage(pref.telegram_id, text, {
+          parse_mode: 'HTML',
+          reply_markup: {
+            inline_keyboard: [
+              [
+                {
+                  text: '👀 E\'lonni ko\'rish',
+                  web_app: { url: `https://frontend-gules-tau-81.vercel.app/listing/${listing.id}` }
+                }
+              ]
+            ]
+          }
+        }).catch(e => console.warn(`Failed to notify tg_id ${pref.telegram_id}:`, e.message));
+      }
+    }
+  } catch (error) {
+    console.error('Error in notifyMatchingUsers:', error);
+  }
+}
 
 export const getMyListings = async (req: AuthRequest, res: Response) => {
   try {

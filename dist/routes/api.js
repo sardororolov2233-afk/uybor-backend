@@ -4,6 +4,7 @@ const express_1 = require("express");
 const auth_controller_1 = require("../controllers/auth.controller");
 const listings_controller_1 = require("../controllers/listings.controller");
 const favorites_controller_1 = require("../controllers/favorites.controller");
+const ai_controller_1 = require("../controllers/ai.controller");
 const authMiddleware_1 = require("../middlewares/authMiddleware");
 const router = (0, express_1.Router)();
 // Auth
@@ -20,4 +21,8 @@ router.delete('/listings/:id', authMiddleware_1.authMiddleware, listings_control
 router.get('/favorites', authMiddleware_1.authMiddleware, favorites_controller_1.getFavorites);
 router.post('/favorites', authMiddleware_1.authMiddleware, favorites_controller_1.addFavorite);
 router.delete('/favorites/:listing_id', authMiddleware_1.authMiddleware, favorites_controller_1.removeFavorite);
+// AI & Payments
+router.post('/ai/chat', ai_controller_1.aiChat);
+router.post('/ai/preferences', authMiddleware_1.authMiddleware, ai_controller_1.saveUserPreferences);
+router.post('/payments/verify-receipt', authMiddleware_1.authMiddleware, ai_controller_1.verifyReceiptPayment);
 exports.default = router;
