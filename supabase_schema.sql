@@ -9,6 +9,7 @@ CREATE TABLE public.users (
   first_name TEXT,
   last_name TEXT,
   phone_number TEXT,
+  photo_url TEXT,
   language TEXT DEFAULT 'uz',
   role TEXT DEFAULT 'USER',
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()

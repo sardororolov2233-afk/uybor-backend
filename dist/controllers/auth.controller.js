@@ -9,6 +9,36 @@ const supabase_1 = require("../utils/supabase");
 const telegramAuth_1 = require("../utils/telegramAuth");
 const BOT_TOKEN = process.env.BOT_TOKEN || 'dummy_token_for_dev';
 const JWT_SECRET = process.env.JWT_SECRET || 'uybor_secret_key_123';
+/**
+ * Telegram Bot API orqali foydalanuvchi profil rasmini olish
+ */
+async function getTelegramPhotoUrl(telegramId) {
+    try {
+        // 1) getUserProfilePhotos - foydalanuvchi rasmlarini olish
+        const photosRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getUserProfilePhotos?user_id=${telegramId}&limit=1`);
+        const photosData = await photosRes.json();
+        if (!photosData.ok || photosData.result.total_count === 0) {
+            return null;
+        }
+        // Eng katta o'lchamdagi rasmni olish (oxirgi element)
+        const photos = photosData.result.photos[0]; // birinchi rasm
+        const biggestPhoto = photos[photos.length - 1]; // eng katta o'lcham
+        const fileId = biggestPhoto.file_id;
+        // 2) getFile - fayl yo'lini olish
+        const fileRes = await fetch(`https://api.telegram.org/bot${BOT_TOKEN}/getFile?file_id=${fileId}`);
+        const fileData = await fileRes.json();
+        if (!fileData.ok) {
+            return null;
+        }
+        // 3) To'liq URL yaratish
+        const filePath = fileData.result.file_path;
+        return `https://api.telegram.org/file/bot${BOT_TOKEN}/${filePath}`;
+    }
+    catch (error) {
+        console.error('Error fetching Telegram photo:', error);
+        return null;
+    }
+}
 const loginWithTelegram = async (req, res) => {
     try {
         const { initData } = req.body;
@@ -17,7 +47,6 @@ const loginWithTelegram = async (req, res) => {
         }
         const telegramUser = (0, telegramAuth_1.verifyTelegramWebAppData)(initData, BOT_TOKEN);
         if (!telegramUser) {
-            // In dev mode, if we want to bypass, we could allow it, but let's be strict or add a dev fallback
             if (process.env.NODE_ENV === 'development') {
                 console.warn('Invalid initData, but allowing in dev mode (Mock)');
             }
@@ -25,10 +54,12 @@ const loginWithTelegram = async (req, res) => {
                 return res.status(401).json({ error: 'Invalid Telegram data' });
             }
         }
-        const tgId = telegramUser ? telegramUser.id : req.body.fallback_id; // fallback_id for testing only if needed
+        const tgId = telegramUser ? telegramUser.id : req.body.fallback_id;
         if (!tgId) {
             return res.status(400).json({ error: 'Could not resolve telegram user id' });
         }
+        // Telegram Bot API orqali profil rasmini olish
+        const photoUrl = await getTelegramPhotoUrl(tgId);
         // Check if user exists in Supabase
         let { data: user, error: fetchError } = await supabase_1.supabase
             .from('users')
@@ -48,6 +79,7 @@ const loginWithTelegram = async (req, res) => {
                 username: telegramUser?.username || null,
                 first_name: telegramUser?.first_name || null,
                 last_name: telegramUser?.last_name || null,
+                photo_url: photoUrl,
                 language: telegramUser?.language_code || 'uz',
             })
                 .select()
@@ -57,6 +89,26 @@ const loginWithTelegram = async (req, res) => {
                 return res.status(500).json({ error: 'Could not create user' });
             }
             user = newUser;
+        }
+        else {
+            // Mavjud foydalanuvchi uchun rasm va ismni yangilash
+            const updateFields = {};
+            if (photoUrl)
+                updateFields.photo_url = photoUrl;
+            if (telegramUser?.first_name)
+                updateFields.first_name = telegramUser.first_name;
+            if (telegramUser?.last_name !== undefined)
+                updateFields.last_name = telegramUser.last_name || null;
+            if (Object.keys(updateFields).length > 0) {
+                const { data: updatedUser } = await supabase_1.supabase
+                    .from('users')
+                    .update(updateFields)
+                    .eq('telegram_id', tgId)
+                    .select()
+                    .single();
+                if (updatedUser)
+                    user = updatedUser;
+            }
         }
         // Generate JWT
         const token = jsonwebtoken_1.default.sign({
