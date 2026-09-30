@@ -65,14 +65,14 @@ export const createListing = async (req: AuthRequest, res: Response) => {
               const fileName = `listings/${user_id}_${Date.now()}_${Math.floor(Math.random()*1000)}.${ext}`;
               
               const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('images')
+                .from('listing-images')
                 .upload(fileName, buffer, {
                   contentType: mimeType,
                   upsert: false
                 });
 
               if (!uploadError && uploadData) {
-                const { data: publicUrlData } = supabase.storage.from('images').getPublicUrl(fileName);
+                const { data: publicUrlData } = supabase.storage.from('listing-images').getPublicUrl(fileName);
                 uploadedImageUrls.push(publicUrlData.publicUrl);
               }
             }
@@ -227,14 +227,14 @@ export const updateListing = async (req: AuthRequest, res: Response) => {
               const fileName = `listings/${user_id}_${Date.now()}_${Math.floor(Math.random()*1000)}.${ext}`;
               
               const { data: uploadData, error: uploadError } = await supabase.storage
-                .from('images')
+                .from('listing-images')
                 .upload(fileName, buffer, {
                   contentType: mimeType,
                   upsert: false
                 });
 
               if (!uploadError && uploadData) {
-                const { data: publicUrlData } = supabase.storage.from('images').getPublicUrl(fileName);
+                const { data: publicUrlData } = supabase.storage.from('listing-images').getPublicUrl(fileName);
                 uploadedImageUrls.push(publicUrlData.publicUrl);
               }
             }

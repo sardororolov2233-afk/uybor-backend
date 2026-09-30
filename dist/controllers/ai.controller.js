@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.verifyReceiptPayment = exports.saveUserPreferences = exports.aiChat = void 0;
+exports.verifyReceiptPayment = exports.getUserPreferences = exports.saveUserPreferences = exports.aiChat = void 0;
 const supabase_1 = require("../utils/supabase");
 const ai_1 = require("../utils/ai");
 const index_1 = require("../index");
@@ -83,6 +83,25 @@ const saveUserPreferences = async (req, res) => {
     }
 };
 exports.saveUserPreferences = saveUserPreferences;
+const getUserPreferences = async (req, res) => {
+    try {
+        const user = req.user;
+        const { data, error } = await supabase_1.supabase
+            .from('user_preferences')
+            .select('*')
+            .eq('user_id', user.id)
+            .order('created_at', { ascending: false });
+        if (error) {
+            return res.status(500).json({ error: 'Ma\'lumotlar bazasidan olishda xatolik' });
+        }
+        res.json(data);
+    }
+    catch (error) {
+        console.error('getUserPreferences error:', error);
+        res.status(500).json({ error: 'Qidiruv talablarini olishda xatolik' });
+    }
+};
+exports.getUserPreferences = getUserPreferences;
 /**
  * 3. To'lov chekini AI (Vision) orqali tekshirish
  */

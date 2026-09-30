@@ -45,20 +45,19 @@ const api_1 = __importDefault(require("./routes/api"));
 dotenv_1.default.config();
 const app = (0, express_1.default)();
 app.use((0, cors_1.default)());
-app.use(express_1.default.json());
+app.use(express_1.default.json({ limit: '50mb' }));
+app.use(express_1.default.urlencoded({ limit: '50mb', extended: true }));
 // Main API Routes
 app.use('/api', api_1.default);
 // --- Telegraf Bot Setup ---
 const botToken = process.env.BOT_TOKEN || 'dummy_token_for_dev';
 exports.bot = new telegraf_1.Telegraf(botToken);
 exports.bot.start((ctx) => {
-    ctx.reply('Assalomu alaykum! "UyBor" ko\'chmas mulk botiga xush kelibsiz! 🏠\n\n' +
-        '• Mini App ni ochish uchun quyidagi tugmani bosing.\n' +
-        '• Qidirayotgan uyingizni yozsangiz (masalan: <i>"Chilonzordan 400$ gacha 2 xonali ijara"</i>), sizga mos e\'lonlarni saralab beraman va eslab qolaman!\n' +
-        '• To\'lov kvitansiyasi (chek) rasmini yuborsangiz, AI orqali avtomatik tasdiqlayman! 🧾', {
+    ctx.reply("Uybor ga xush kelibsiz! 🏠\n" +
+        "E'lonlarni ko'rish uchun quyidagi tugmani bosing.", {
         parse_mode: 'HTML',
         ...telegraf_1.Markup.inlineKeyboard([
-            telegraf_1.Markup.button.webApp('🏠 Uybor Mini App ni ochish', 'https://frontend-gules-tau-81.vercel.app')
+            telegraf_1.Markup.button.webApp('Uybor ni ochish', 'https://frontend-gules-tau-81.vercel.app')
         ])
     });
 });

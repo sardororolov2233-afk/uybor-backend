@@ -23,6 +23,7 @@ router.post('/favorites', authMiddleware_1.authMiddleware, favorites_controller_
 router.delete('/favorites/:listing_id', authMiddleware_1.authMiddleware, favorites_controller_1.removeFavorite);
 // AI & Payments
 router.post('/ai/chat', ai_controller_1.aiChat);
+router.get('/ai/preferences', authMiddleware_1.authMiddleware, ai_controller_1.getUserPreferences);
 router.post('/ai/preferences', authMiddleware_1.authMiddleware, ai_controller_1.saveUserPreferences);
 router.post('/payments/verify-receipt', authMiddleware_1.authMiddleware, ai_controller_1.verifyReceiptPayment);
 exports.default = router;
