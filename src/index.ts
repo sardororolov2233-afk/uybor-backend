@@ -20,14 +20,12 @@ export const bot = new Telegraf(botToken);
 
 bot.start((ctx) => {
   ctx.reply(
-    'Assalomu alaykum! "UyBor" ko\'chmas mulk botiga xush kelibsiz! 🏠\n\n' +
-    '• Mini App ni ochish uchun quyidagi tugmani bosing.\n' +
-    '• Qidirayotgan uyingizni yozsangiz (masalan: <i>"Chilonzordan 400$ gacha 2 xonali ijara"</i>), sizga mos e\'lonlarni saralab beraman va eslab qolaman!\n' +
-    '• To\'lov kvitansiyasi (chek) rasmini yuborsangiz, AI orqali avtomatik tasdiqlayman! 🧾',
+    "Uybor ga xush kelibsiz! 🏠\n" +
+    "E'lonlarni ko'rish uchun quyidagi tugmani bosing.",
     {
       parse_mode: 'HTML',
       ...Markup.inlineKeyboard([
-        Markup.button.webApp('🏠 Uybor Mini App ni ochish', 'https://frontend-gules-tau-81.vercel.app')
+        Markup.button.webApp('Uybor ni ochish', 'https://frontend-gules-tau-81.vercel.app')
       ])
     }
   );
