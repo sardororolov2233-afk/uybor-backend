@@ -90,6 +90,25 @@ export const saveUserPreferences = async (req: Request, res: Response) => {
   }
 };
 
+export const getUserPreferences = async (req: Request, res: Response) => {
+  try {
+    const user = (req as any).user;
+    const { data, error } = await supabase
+      .from('user_preferences')
+      .select('*')
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+
+    if (error) {
+      return res.status(500).json({ error: 'Ma\'lumotlar bazasidan olishda xatolik' });
+    }
+    res.json(data);
+  } catch (error: any) {
+    console.error('getUserPreferences error:', error);
+    res.status(500).json({ error: 'Qidiruv talablarini olishda xatolik' });
+  }
+};
+
 /**
  * 3. To'lov chekini AI (Vision) orqali tekshirish
  */

@@ -49,6 +49,43 @@ export const createListing = async (req: AuthRequest, res: Response) => {
 
     const { title, description, price, currency, category, property_type, rooms, area, address, lat, lon, images } = req.body;
 
+    let uploadedImageUrls: string[] = [];
+
+    // Base64 rasmlarni Supabase Storage'ga yuklash
+    if (images && Array.isArray(images)) {
+      for (const img of images) {
+        if (img.startsWith('data:image')) {
+          try {
+            const matches = img.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+            if (matches && matches.length === 3) {
+              const mimeType = matches[1];
+              const base64Data = matches[2];
+              const buffer = Buffer.from(base64Data, 'base64');
+              const ext = mimeType.split('/')[1] || 'jpeg';
+              const fileName = `listings/${user_id}_${Date.now()}_${Math.floor(Math.random()*1000)}.${ext}`;
+              
+              const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('images')
+                .upload(fileName, buffer, {
+                  contentType: mimeType,
+                  upsert: false
+                });
+
+              if (!uploadError && uploadData) {
+                const { data: publicUrlData } = supabase.storage.from('images').getPublicUrl(fileName);
+                uploadedImageUrls.push(publicUrlData.publicUrl);
+              }
+            }
+          } catch (e) {
+            console.error('Image upload error:', e);
+            uploadedImageUrls.push(img); // Xatolik bo'lsa base64 ni o'zini qoldiramiz (fallback)
+          }
+        } else {
+          uploadedImageUrls.push(img); // Agar u oldin yuklangan URL bo'lsa
+        }
+      }
+    }
+
     const { data, error } = await supabase
       .from('listings')
       .insert({
@@ -64,7 +101,7 @@ export const createListing = async (req: AuthRequest, res: Response) => {
         address,
         lat,
         lon,
-        images: images || [],
+        images: uploadedImageUrls,
         status: 'ACTIVE'
       })
       .select()
@@ -175,11 +212,49 @@ export const updateListing = async (req: AuthRequest, res: Response) => {
     const { title, description, price, currency, category, property_type,
             rooms, area, address, lat, lon, images, status } = req.body;
 
+    let uploadedImageUrls: string[] = [];
+
+    if (images && Array.isArray(images)) {
+      for (const img of images) {
+        if (img.startsWith('data:image')) {
+          try {
+            const matches = img.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+            if (matches && matches.length === 3) {
+              const mimeType = matches[1];
+              const base64Data = matches[2];
+              const buffer = Buffer.from(base64Data, 'base64');
+              const ext = mimeType.split('/')[1] || 'jpeg';
+              const fileName = `listings/${user_id}_${Date.now()}_${Math.floor(Math.random()*1000)}.${ext}`;
+              
+              const { data: uploadData, error: uploadError } = await supabase.storage
+                .from('images')
+                .upload(fileName, buffer, {
+                  contentType: mimeType,
+                  upsert: false
+                });
+
+              if (!uploadError && uploadData) {
+                const { data: publicUrlData } = supabase.storage.from('images').getPublicUrl(fileName);
+                uploadedImageUrls.push(publicUrlData.publicUrl);
+              }
+            }
+          } catch (e) {
+            console.error('Image upload error:', e);
+            uploadedImageUrls.push(img);
+          }
+        } else {
+          uploadedImageUrls.push(img); // Already a URL
+        }
+      }
+    }
+
     const { data, error } = await supabase
       .from('listings')
       .update({
         title, description, price, currency, category, property_type,
-        rooms, area, address, lat, lon, images, status
+        rooms, area, address, lat, lon, 
+        ...(images ? { images: uploadedImageUrls } : {}), 
+        status
       })
       .eq('id', id)
       .select()

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { loginWithTelegram } from '../controllers/auth.controller';
 import { getListings, getListingById, createListing, getMyListings, updateListing, deleteListing } from '../controllers/listings.controller';
 import { getFavorites, addFavorite, removeFavorite } from '../controllers/favorites.controller';
-import { aiChat, saveUserPreferences, verifyReceiptPayment } from '../controllers/ai.controller';
+import { aiChat, saveUserPreferences, verifyReceiptPayment, getUserPreferences } from '../controllers/ai.controller';
 import { authMiddleware } from '../middlewares/authMiddleware';
 
 const router = Router();
@@ -27,6 +27,7 @@ router.delete('/favorites/:listing_id', authMiddleware, removeFavorite);
 
 // AI & Payments
 router.post('/ai/chat', aiChat);
+router.get('/ai/preferences', authMiddleware, getUserPreferences);
 router.post('/ai/preferences', authMiddleware, saveUserPreferences);
 router.post('/payments/verify-receipt', authMiddleware, verifyReceiptPayment);
 
