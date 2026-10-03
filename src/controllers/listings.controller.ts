@@ -22,7 +22,7 @@ export const getListings = async (req: Request, res: Response) => {
     res.json(data);
   } catch (error: any) {
     console.error('Error fetching listings:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ error: error?.message || 'Internal server error', details: error });
   }
 };
 
@@ -41,7 +41,7 @@ export const getListingById = async (req: Request, res: Response) => {
     res.json(data);
   } catch (error: any) {
     console.error('Error fetching listing:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error?.message || 'Internal server error', details: error });
   }
 };
 
@@ -123,7 +123,7 @@ export const createListing = async (req: AuthRequest, res: Response) => {
     res.status(201).json(data);
   } catch (error: any) {
     console.error('Error creating listing:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ error: error?.message || 'Internal server error', details: error });
   }
 };
 
@@ -197,7 +197,7 @@ export const getMyListings = async (req: AuthRequest, res: Response) => {
     res.json(data);
   } catch (error: any) {
     console.error('Error fetching own listings:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error?.message || 'Internal server error', details: error });
   }
 };
 
@@ -297,7 +297,7 @@ export const updateListing = async (req: AuthRequest, res: Response) => {
     res.json(data);
   } catch (error: any) {
     console.error('Error updating listing:', error);
-    res.status(500).json({ error: error.message || 'Internal server error' });
+    res.status(500).json({ error: error?.message || 'Internal server error', details: error });
   }
 };
 
@@ -334,7 +334,7 @@ export const deleteListing = async (req: AuthRequest, res: Response) => {
     res.json({ success: true });
   } catch (error: any) {
     console.error('Error deleting listing:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    res.status(500).json({ error: error?.message || 'Internal server error', details: error });
   }
 };
 
