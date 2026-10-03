@@ -4,12 +4,15 @@ import { Telegraf, Markup } from 'telegraf';
 import dotenv from 'dotenv';
 import apiRoutes from './routes/api';
 import rateLimit from 'express-rate-limit';
+import morgan from 'morgan';
+import { errorHandler } from './middlewares/errorHandler';
 
 dotenv.config();
 
 const app = express();
 
 app.use(cors({ origin: ['https://frontend-gules-tau-81.vercel.app', 'http://localhost:5173'] }));
+app.use(morgan('dev'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '2mb', extended: true }));
 
@@ -172,6 +175,8 @@ bot.on('text', async (ctx) => {
     await ctx.reply('So\'rovingizni qayta ishlashda xatolik bo\'ldi.');
   }
 });
+
+app.use(errorHandler);
 
 bot.launch().then(() => {
   console.log('Telegraf bot launched successfully.');

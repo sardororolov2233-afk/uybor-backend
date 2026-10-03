@@ -122,3 +122,31 @@ ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.user_preferences ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
+
+-- 12. Messages Table
+CREATE TABLE IF NOT EXISTS public.messages (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  sender_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  receiver_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  listing_id UUID REFERENCES public.listings(id) ON DELETE SET NULL,
+  content TEXT NOT NULL,
+  is_read BOOLEAN DEFAULT false,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- 13. Saved Searches Table
+CREATE TABLE IF NOT EXISTS public.saved_searches (
+  id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  user_id UUID NOT NULL REFERENCES public.users(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  filters JSONB NOT NULL DEFAULT '{}'::jsonb,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+);
+
+-- Apply RLS for new tables
+ALTER TABLE public.messages ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.saved_searches ENABLE ROW LEVEL SECURITY;
+
+-- Indexes for new tables
+CREATE INDEX IF NOT EXISTS idx_messages_participants ON public.messages(sender_id, receiver_id);
+CREATE INDEX IF NOT EXISTS idx_saved_searches_user ON public.saved_searches(user_id);

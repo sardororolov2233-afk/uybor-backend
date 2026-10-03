@@ -20,6 +20,7 @@
     "express": "^5.2.1",
     "express-rate-limit": "^8.7.0",
     "jsonwebtoken": "^9.0.3",
+    "morgan": "^1.12.1",
     "multer": "^2.4.0",
     "telegraf": "^4.16.3",
     "zod": "^4.6.5"
@@ -28,6 +29,7 @@
     "@types/cors": "^2.8.19",
     "@types/express": "^5.0.6",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/morgan": "^1.9.10",
     "@types/multer": "^2.3.0",
     "@types/node": "^26.6.3",
     "ts-node": "^10.9.2",
