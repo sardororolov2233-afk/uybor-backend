@@ -3,16 +3,20 @@ import cors from 'cors';
 import { Telegraf, Markup } from 'telegraf';
 import dotenv from 'dotenv';
 import apiRoutes from './routes/api';
+import rateLimit from 'express-rate-limit';
 
 dotenv.config();
 
 const app = express();
 
-app.use(cors());
+app.use(cors({ origin: ['https://frontend-gules-tau-81.vercel.app', 'http://localhost:5173'] }));
 app.use(express.json({ limit: '50mb' }));
-app.use(express.urlencoded({ limit: '50mb', extended: true }));
+app.use(express.urlencoded({ limit: '2mb', extended: true }));
+
+const limiter = rateLimit({ windowMs: 15 * 60 * 1000, max: 100, message: 'Too many requests' });
 
 // Main API Routes
+app.use('/api', limiter);
 app.use('/api', apiRoutes);
 
 // --- Telegraf Bot Setup ---

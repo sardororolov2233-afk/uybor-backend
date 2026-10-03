@@ -6,14 +6,17 @@ export const getListings = async (req: Request, res: Response) => {
   try {
     const { category, price_max, rooms, property_type } = req.query;
     
-    let query = supabase.from('listings').select('*, users!inner(username, first_name, phone_number)');
+    const pageNum = parseInt(req.query.page as string) || 1;
+    const limitNum = Math.min(parseInt(req.query.limit as string) || 20, 100);
+    
+    let query = supabase.from('listings').select('*, users!inner(username, first_name)').eq('status', 'ACTIVE');
 
     if (category) query = query.eq('category', String(category));
     if (property_type) query = query.eq('property_type', String(property_type));
     if (rooms) query = query.eq('rooms', parseInt(String(rooms), 10));
     if (price_max) query = query.lte('price', parseFloat(String(price_max)));
 
-    const { data, error } = await query.order('created_at', { ascending: false });
+    const { data, error } = await query.order('created_at', { ascending: false }).range((pageNum - 1) * limitNum, pageNum * limitNum - 1);
 
     if (error) throw error;
     res.json(data);
@@ -195,7 +198,7 @@ export const updateListing = async (req: AuthRequest, res: Response) => {
 
     const { data: existing } = await supabase
       .from('listings')
-      .select('user_id')
+      .select('user_id, images')
       .eq('id', id)
       .single();
 
@@ -218,6 +221,15 @@ export const updateListing = async (req: AuthRequest, res: Response) => {
       } else {
         existingImages = [req.body.existingImages];
       }
+    }
+
+    const removedImages = existing.images?.filter((img: string) => !existingImages.includes(img)) || [];
+    if (removedImages.length > 0) {
+      const paths = removedImages.map((url: string) => {
+        const parts = url.split('/');
+        return 'listings/' + parts[parts.length - 1];
+      });
+      await supabase.storage.from('listing-images').remove(paths);
     }
 
     let uploadedImageUrls: string[] = [...existingImages];
@@ -275,6 +287,24 @@ export const deleteListing = async (req: AuthRequest, res: Response) => {
     const user_id = req.user?.id;
     const { id } = req.params;
     if (!user_id) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { data: existing } = await supabase
+      .from('listings')
+      .select('user_id, images')
+      .eq('id', id)
+      .single();
+
+    if (!existing || existing.user_id !== user_id) {
+      return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    if (existing.images && existing.images.length > 0) {
+      const paths = existing.images.map((url: string) => {
+        const parts = url.split('/');
+        return 'listings/' + parts[parts.length - 1];
+      });
+      await supabase.storage.from('listing-images').remove(paths);
+    }
 
     const { error } = await supabase
       .from('listings')
