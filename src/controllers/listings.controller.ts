@@ -50,7 +50,12 @@ export const createListing = async (req: AuthRequest, res: Response) => {
     const user_id = req.user?.id;
     if (!user_id) return res.status(401).json({ error: 'Unauthorized' });
 
-    const { title, description, price, currency, category, property_type, rooms, area, address, lat, lon } = req.body;
+    const { title, description, currency, category, property_type, address, lat, lon } = req.body;
+    
+    // Convert string inputs to proper numbers to avoid DB Check Constraint errors
+    const price = parseFloat(String(req.body.price).replace(/\s/g, '')) || 0;
+    const rooms = parseInt(String(req.body.rooms)) || 1;
+    const area = req.body.area ? parseFloat(String(req.body.area)) : null;
     
     let uploadedImageUrls: string[] = [];
 
@@ -206,8 +211,12 @@ export const updateListing = async (req: AuthRequest, res: Response) => {
       return res.status(403).json({ error: 'Forbidden' });
     }
 
-    const { title, description, price, currency, category, property_type,
-            rooms, area, address, lat, lon, status } = req.body;
+    const { title, description, currency, category, property_type,
+            address, lat, lon, status } = req.body;
+
+    const price = parseFloat(String(req.body.price).replace(/\s/g, '')) || 0;
+    const rooms = parseInt(String(req.body.rooms)) || 1;
+    const area = req.body.area ? parseFloat(String(req.body.area)) : null;
 
     if (status && !['ACTIVE', 'ARCHIVED'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
