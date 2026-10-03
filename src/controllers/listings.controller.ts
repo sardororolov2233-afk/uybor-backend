@@ -50,6 +50,12 @@ export const createListing = async (req: AuthRequest, res: Response) => {
     const user_id = req.user?.id;
     if (!user_id) return res.status(401).json({ error: 'Unauthorized' });
 
+    // Add safety fallback in case multipart/form-data parsing fails on the server
+    if (!req.body) {
+      console.error('req.body is undefined! Check if multer is parsing multipart/form-data correctly.');
+      return res.status(400).json({ error: 'Request body is empty or not parsed correctly' });
+    }
+
     const { title, description, currency, category, property_type, address, lat, lon } = req.body;
     
     // Convert string inputs to proper numbers to avoid DB Check Constraint errors
@@ -209,6 +215,10 @@ export const updateListing = async (req: AuthRequest, res: Response) => {
 
     if (!existing || existing.user_id !== user_id) {
       return res.status(403).json({ error: 'Forbidden' });
+    }
+
+    if (!req.body) {
+      return res.status(400).json({ error: 'Request body is empty or not parsed correctly' });
     }
 
     const { title, description, currency, category, property_type,
