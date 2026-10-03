@@ -158,7 +158,7 @@ async function notifyMatchingUsers(listing: any) {
               [
                 {
                   text: '👀 E\'lonni ko\'rish',
-                  web_app: { url: `https://frontend-gules-tau-81.vercel.app/listing/${listing.id}` }
+                  web_app: { url: `${process.env.FRONTEND_URL || 'https://frontend-gules-tau-81.vercel.app'}/listing/${listing.id}` }
                 }
               ]
             ]

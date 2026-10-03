@@ -11,7 +11,9 @@ dotenv.config();
 
 const app = express();
 
-app.use(cors({ origin: ['https://frontend-gules-tau-81.vercel.app', 'http://localhost:5173'] }));
+app.get('/api/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
+
+app.use(cors({ origin: [process.env.FRONTEND_URL || 'https://frontend-gules-tau-81.vercel.app', 'http://localhost:5173'] }));
 app.use(morgan('dev'));
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '2mb', extended: true }));
@@ -33,7 +35,7 @@ bot.start((ctx) => {
     {
       parse_mode: 'HTML',
       ...Markup.inlineKeyboard([
-        Markup.button.webApp('Uybor ni ochish', 'https://frontend-gules-tau-81.vercel.app')
+        Markup.button.webApp('Uybor ni ochish', process.env.FRONTEND_URL || 'https://frontend-gules-tau-81.vercel.app')
       ])
     }
   );
@@ -162,7 +164,7 @@ bot.on('text', async (ctx) => {
       await ctx.reply(responseMsg, {
         parse_mode: 'HTML',
         ...Markup.inlineKeyboard([
-          Markup.button.webApp('🔍 Barcha e\'lonlarni ochish', 'https://frontend-gules-tau-81.vercel.app/all-listings')
+          Markup.button.webApp('🔍 Barcha e\'lonlarni ochish', `${process.env.FRONTEND_URL || 'https://frontend-gules-tau-81.vercel.app'}/all-listings`)
         ])
       });
     } else {
@@ -184,11 +186,12 @@ bot.launch().then(() => {
   console.log('Telegraf bot launch failed (likely due to dummy token):', err.message);
 });
 
-process.once('SIGINT', () => bot.stop('SIGINT'));
-process.once('SIGTERM', () => bot.stop('SIGTERM'));
-
 // --- Start Express Server ---
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Express API is running on port ${PORT}`);
 });
+
+const shutdown = () => { bot.stop(); server.close(); process.exit(0); };
+process.once('SIGINT', shutdown);
+process.once('SIGTERM', shutdown);
