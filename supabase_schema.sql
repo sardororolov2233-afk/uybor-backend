@@ -105,3 +105,20 @@ CREATE TABLE IF NOT EXISTS public.payments (
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
+-- 9. Performance Indexes
+CREATE INDEX IF NOT EXISTS idx_listings_filters ON public.listings(category, property_type, status);
+CREATE INDEX IF NOT EXISTS idx_listings_price ON public.listings(price);
+CREATE INDEX IF NOT EXISTS idx_listings_user_id ON public.listings(user_id);
+CREATE INDEX IF NOT EXISTS idx_favorites_user_id ON public.favorites(user_id);
+CREATE INDEX IF NOT EXISTS idx_user_prefs_active ON public.user_preferences(is_active);
+
+-- 10. Data Integrity Constraints
+ALTER TABLE public.listings ADD CONSTRAINT chk_listing_values 
+  CHECK (price >= 0 AND rooms > 0 AND (area IS NULL OR area > 0));
+
+-- 11. Row Level Security (RLS)
+ALTER TABLE public.listings ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.favorites ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.user_preferences ENABLE ROW LEVEL SECURITY;
+ALTER TABLE public.payments ENABLE ROW LEVEL SECURITY;
