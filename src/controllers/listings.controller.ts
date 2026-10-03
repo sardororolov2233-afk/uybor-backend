@@ -205,6 +205,10 @@ export const updateListing = async (req: AuthRequest, res: Response) => {
 
     const { title, description, price, currency, category, property_type,
             rooms, area, address, lat, lon, status } = req.body;
+
+    if (status && !['ACTIVE', 'ARCHIVED'].includes(status)) {
+      return res.status(400).json({ error: 'Invalid status' });
+    }
             
     // req.body.existingImages string yoki string[] bo'lishi mumkin
     let existingImages: string[] = [];

@@ -4,7 +4,8 @@ import { supabase } from '../utils/supabase';
 import { verifyTelegramWebAppData } from '../utils/telegramAuth';
 
 const BOT_TOKEN = process.env.BOT_TOKEN || 'dummy_token_for_dev';
-const JWT_SECRET = process.env.JWT_SECRET || 'uybor_secret_key_123';
+const JWT_SECRET = process.env.JWT_SECRET;
+if (!JWT_SECRET) throw new Error('JWT_SECRET is not defined');
 
 /**
  * Telegram Bot API orqali foydalanuvchi profil rasmini olish
@@ -56,17 +57,10 @@ export const loginWithTelegram = async (req: Request, res: Response) => {
     const telegramUser = verifyTelegramWebAppData(initData, BOT_TOKEN);
     
     if (!telegramUser) {
-      if (process.env.NODE_ENV === 'development') {
-        console.warn('Invalid initData, but allowing in dev mode (Mock)');
-      } else {
-        return res.status(401).json({ error: 'Invalid Telegram data' });
-      }
+      return res.status(401).json({ error: 'Invalid Telegram data' });
     }
     
-    const tgId = telegramUser ? telegramUser.id : req.body.fallback_id;
-    if (!tgId) {
-       return res.status(400).json({ error: 'Could not resolve telegram user id' });
-    }
+    const tgId = telegramUser.id;
 
     // Telegram Bot API orqali profil rasmini olish
     const photoUrl = await getTelegramPhotoUrl(tgId);
