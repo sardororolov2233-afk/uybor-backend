@@ -45,54 +45,67 @@ export const getListingById = async (req: Request, res: Response) => {
   }
 };
 
+// ==========================================
+// SIGNED UPLOAD URLS
+// ==========================================
+export const generateUploadUrls = async (req: AuthRequest, res: Response) => {
+  try {
+    const user_id = req.user?.id;
+    if (!user_id) return res.status(401).json({ error: 'Unauthorized' });
+
+    const { files } = req.body; 
+    if (!files || !Array.isArray(files)) {
+      return res.status(400).json({ error: 'files array is required' });
+    }
+
+    const results = [];
+    for (const f of files) {
+      const ext = f.ext || 'jpeg';
+      const fileName = `listings/${user_id}_${Date.now()}_${Math.floor(Math.random()*10000)}.${ext}`;
+      
+      // Signed URL yaratish
+      const { data, error } = await supabase.storage
+        .from('listing-images')
+        .createSignedUploadUrl(fileName);
+
+      if (error) throw error;
+
+      // Ommaviy ulanish havolasini ham tayyorlab beramiz
+      const { data: publicUrlData } = supabase.storage
+        .from('listing-images')
+        .getPublicUrl(data.path);
+      
+      results.push({
+        signedUrl: data.signedUrl,
+        path: data.path,
+        token: data.token,
+        publicUrl: publicUrlData.publicUrl
+      });
+    }
+    
+    res.json({ urls: results });
+  } catch (error: any) {
+    console.error('generateUploadUrls error:', error);
+    res.status(500).json({ error: error?.message || 'Failed to generate upload urls' });
+  }
+};
+
 export const createListing = async (req: AuthRequest, res: Response) => {
   try {
     const user_id = req.user?.id;
     if (!user_id) return res.status(401).json({ error: 'Unauthorized' });
 
-    // Add safety fallback in case multipart/form-data parsing fails on the server
     if (!req.body) {
-      console.error('req.body is undefined! Check if multer is parsing multipart/form-data correctly.');
-      return res.status(400).json({ error: 'Request body is empty or not parsed correctly' });
+      return res.status(400).json({ error: 'Request body is empty' });
     }
 
     const { title, description, currency, category, property_type, address, lat, lon } = req.body;
     
-    // Convert string inputs to proper numbers to avoid DB Check Constraint errors
     const price = parseFloat(String(req.body.price).replace(/\s/g, '')) || 0;
     const rooms = parseInt(String(req.body.rooms)) || 1;
     const area = req.body.area ? parseFloat(String(req.body.area)) : null;
     
-    let uploadedImageUrls: string[] = [];
-
-    // Multer orqali yuklangan fayllarni Supabase Storage'ga yuklash
-    const files = req.files as Express.Multer.File[];
-    if (files && files.length > 0) {
-      for (const file of files) {
-        try {
-          const mimeType = file.mimetype;
-          const buffer = file.buffer;
-          const ext = mimeType.split('/')[1] || 'jpeg';
-          const fileName = `listings/${user_id}_${Date.now()}_${Math.floor(Math.random()*1000)}.${ext}`;
-          
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('listing-images')
-            .upload(fileName, buffer, {
-              contentType: mimeType,
-              upsert: false
-            });
-
-          if (!uploadError && uploadData) {
-            const { data: publicUrlData } = supabase.storage.from('listing-images').getPublicUrl(fileName);
-            uploadedImageUrls.push(publicUrlData.publicUrl);
-          } else {
-            console.error('Supabase upload error:', uploadError);
-          }
-        } catch (e) {
-          console.error('Image upload processing error:', e);
-        }
-      }
-    }
+    const imageUrls = req.body.imageUrls || [];
 
     const { data, error } = await supabase
       .from('listings')
@@ -109,7 +122,7 @@ export const createListing = async (req: AuthRequest, res: Response) => {
         address,
         lat,
         lon,
-        images: uploadedImageUrls,
+        images: imageUrls,
         status: 'ACTIVE'
       })
       .select()
@@ -117,7 +130,7 @@ export const createListing = async (req: AuthRequest, res: Response) => {
 
     if (error) throw error;
 
-    // Mos keluvchi foydalanuvchilarga bot orqali bildirishnoma yuborish
+    // Bildirishnoma yuborish
     notifyMatchingUsers(data).catch(err => console.error('notifyMatchingUsers error:', err));
 
     res.status(201).json(data);
@@ -127,9 +140,6 @@ export const createListing = async (req: AuthRequest, res: Response) => {
   }
 };
 
-/**
- * Yangi e'lon qo'shilganda uning parametrlariga mos keluvchi foydalanuvchilar lichkasiga Telegram xabar yuborish
- */
 async function notifyMatchingUsers(listing: any) {
   try {
     const { data: preferences } = await supabase
@@ -142,18 +152,12 @@ async function notifyMatchingUsers(listing: any) {
     const { bot } = await import('../index');
 
     for (const pref of preferences) {
-      // 1. Kategoriya mosligi
       if (pref.category && pref.category !== listing.category) continue;
-      // 2. Mulk turi mosligi
       if (pref.property_type && pref.property_type !== listing.property_type) continue;
-      // 3. Xonalar soni
       if (pref.rooms && pref.rooms !== listing.rooms) continue;
-      // 4. Maksimal narx
       if (pref.max_price && Number(listing.price) > Number(pref.max_price)) continue;
-      // 5. Minimal narx
       if (pref.min_price && Number(listing.price) < Number(pref.min_price)) continue;
 
-      // Agar barcha mezonlar to'g'ri kelsa, Telegram lichkasiga yuborish
       if (bot && pref.telegram_id) {
         const text = `🔔 <b>Siz qidirgan yangi e'lon qo'shildi!</b>\n\n` +
           `🏠 <b>${listing.title}</b>\n` +
@@ -218,31 +222,24 @@ export const updateListing = async (req: AuthRequest, res: Response) => {
     }
 
     if (!req.body) {
-      return res.status(400).json({ error: 'Request body is empty or not parsed correctly' });
+      return res.status(400).json({ error: 'Request body is empty' });
     }
 
     const { title, description, currency, category, property_type,
-            address, lat, lon, status } = req.body;
+            address, lat, lon, status, imageUrls } = req.body;
 
     const price = parseFloat(String(req.body.price).replace(/\s/g, '')) || 0;
     const rooms = parseInt(String(req.body.rooms)) || 1;
     const area = req.body.area ? parseFloat(String(req.body.area)) : null;
 
-    if (status && !['ACTIVE', 'ARCHIVED'].includes(status)) {
+    if (status && !['ACTIVE', 'ARCHIVED', 'PROMOTED'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
     }
             
-    // req.body.existingImages string yoki string[] bo'lishi mumkin
-    let existingImages: string[] = [];
-    if (req.body.existingImages) {
-      if (Array.isArray(req.body.existingImages)) {
-        existingImages = req.body.existingImages;
-      } else {
-        existingImages = [req.body.existingImages];
-      }
-    }
+    const finalImageUrls: string[] = imageUrls || [];
 
-    const removedImages = existing.images?.filter((img: string) => !existingImages.includes(img)) || [];
+    // O'chirilgan rasmlarni storage'dan tozalash
+    const removedImages = existing.images?.filter((img: string) => !finalImageUrls.includes(img)) || [];
     if (removedImages.length > 0) {
       const paths = removedImages.map((url: string) => {
         const parts = url.split('/');
@@ -251,42 +248,12 @@ export const updateListing = async (req: AuthRequest, res: Response) => {
       await supabase.storage.from('listing-images').remove(paths);
     }
 
-    let uploadedImageUrls: string[] = [...existingImages];
-
-    const files = req.files as Express.Multer.File[];
-    if (files && files.length > 0) {
-      for (const file of files) {
-        try {
-          const mimeType = file.mimetype;
-          const buffer = file.buffer;
-          const ext = mimeType.split('/')[1] || 'jpeg';
-          const fileName = `listings/${user_id}_${Date.now()}_${Math.floor(Math.random()*1000)}.${ext}`;
-          
-          const { data: uploadData, error: uploadError } = await supabase.storage
-            .from('listing-images')
-            .upload(fileName, buffer, {
-              contentType: mimeType,
-              upsert: false
-            });
-
-          if (!uploadError && uploadData) {
-            const { data: publicUrlData } = supabase.storage.from('listing-images').getPublicUrl(fileName);
-            uploadedImageUrls.push(publicUrlData.publicUrl);
-          } else {
-            console.error('Supabase upload error:', uploadError);
-          }
-        } catch (e) {
-          console.error('Image upload processing error:', e);
-        }
-      }
-    }
-
     const { data, error } = await supabase
       .from('listings')
       .update({
         title, description, price, currency, category, property_type,
         rooms, area, address, lat, lon, 
-        images: uploadedImageUrls,
+        images: finalImageUrls,
         status
       })
       .eq('id', id)
@@ -337,4 +304,3 @@ export const deleteListing = async (req: AuthRequest, res: Response) => {
     res.status(500).json({ error: error?.message || 'Internal server error', details: error });
   }
 };
-
