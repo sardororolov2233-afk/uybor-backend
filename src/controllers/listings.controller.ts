@@ -4,7 +4,7 @@ import { AuthRequest } from '../middlewares/authMiddleware';
 
 export const getListings = async (req: Request, res: Response) => {
   try {
-    const { category, price_max, rooms, property_type } = req.query;
+    const { category, price_max, rooms, property_type, rent_target } = req.query;
     
     const pageNum = parseInt(req.query.page as string) || 1;
     const limitNum = Math.min(parseInt(req.query.limit as string) || 20, 100);
@@ -15,6 +15,7 @@ export const getListings = async (req: Request, res: Response) => {
     if (property_type) query = query.eq('property_type', String(property_type));
     if (rooms) query = query.eq('rooms', parseInt(String(rooms), 10));
     if (price_max) query = query.lte('price', parseFloat(String(price_max)));
+    if (rent_target) query = query.ilike('description', `%Kimlar uchun: ${String(rent_target)}%`);
 
     const { data, error } = await query.order('created_at', { ascending: false }).range((pageNum - 1) * limitNum, pageNum * limitNum - 1);
 
