@@ -107,6 +107,28 @@ export const createListing = async (req: AuthRequest, res: Response) => {
     
     const imageUrls = req.body.imageUrls || [];
 
+    // Check monthly limit
+    const startOfMonth = new Date();
+    startOfMonth.setDate(1);
+    startOfMonth.setHours(0, 0, 0, 0);
+
+    const { count: currentMonthListingsCount } = await supabase
+      .from('listings')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user_id)
+      .gte('created_at', startOfMonth.toISOString());
+
+    // Todo: Check if user has active subscription from users or subscriptions table
+    // For now, if no subscription and count >= 5, throw limit reached
+    if ((currentMonthListingsCount || 0) >= 5) {
+      // Temporary check: If user hasn't paid, restrict
+      // In a real app, verify subscription tier limits here.
+      return res.status(403).json({ 
+        error: 'LIMIT_REACHED', 
+        message: 'Oylik bepul e\'lonlar limiti (5 ta) tugadi. Iltimos, rieltor paketini xarid qiling.' 
+      });
+    }
+
     const { data, error } = await supabase
       .from('listings')
       .insert({
@@ -175,10 +197,17 @@ async function notifyMatchingUsers(listing: any) {
                   text: '👀 E\'lonni ko\'rish',
                   web_app: { url: `${process.env.FRONTEND_URL || 'https://frontend-gules-tau-81.vercel.app'}/listing/${listing.id}` }
                 }
+              ],
+              [
+                { text: '✅ Foydali', callback_data: `feedback_useful_${pref.id}` },
+                { text: '🔄 Yana reklamalarni yubor', callback_data: `feedback_more_${pref.id}` }
               ]
             ]
           }
         }).catch(e => console.warn(`Failed to notify tg_id ${pref.telegram_id}:`, e.message));
+
+        // Disable it so we only send one ad
+        await supabase.from('user_preferences').update({ is_active: false }).eq('id', pref.id);
       }
     }
   } catch (error) {

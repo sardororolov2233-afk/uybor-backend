@@ -121,10 +121,11 @@ bot.on('text', async (ctx) => {
 
     // Foydalanuvchini bazada topish va talablarini saqlash
     const tgId = ctx.from?.id;
+    let prefId = null;
     if (tgId) {
       let { data: user } = await supabase.from('users').select('id').eq('telegram_id', tgId).single();
       if (user) {
-        await supabase.from('user_preferences').insert({
+        const { data: prefData } = await supabase.from('user_preferences').insert({
           user_id: user.id,
           telegram_id: tgId,
           category: extracted.category,
@@ -135,8 +136,9 @@ bot.on('text', async (ctx) => {
           rooms: extracted.rooms,
           district: extracted.district,
           raw_prompt: text,
-          is_active: true,
-        });
+          is_active: false,
+        }).select('id').single();
+        if (prefData) prefId = prefData.id;
       }
     }
 
@@ -147,34 +149,79 @@ bot.on('text', async (ctx) => {
     if (extracted.rooms) query = query.eq('rooms', extracted.rooms);
     if (extracted.max_price) query = query.lte('price', extracted.max_price);
 
-    const { data: matchedListings } = await query.limit(5);
+    const { data: matchedListings } = await query.limit(1);
 
     let responseMsg = `🤖 <b>AI Qidiruv natijasi:</b>\n` +
       `📌 <b>Talabingiz:</b> ${extracted.summary}\n\n`;
 
     if (matchedListings && matchedListings.length > 0) {
-      responseMsg += `Topilgan mos e'lonlar (${matchedListings.length} ta):\n\n`;
-      matchedListings.forEach((item, idx) => {
-        responseMsg += `${idx + 1}. <b>${item.title}</b>\n` +
-          `💰 Narxi: ${item.price} ${item.currency}\n` +
-          `📍 Manzil: ${item.address || 'Ko\'rsatilmagan'}\n\n`;
-      });
-      responseMsg += `E'lonlarni to'liq ko'rish uchun quyidagi tugmani bosing:`;
+      const item = matchedListings[0];
+      responseMsg += `Topilgan mos e'lon:\n\n`;
+      responseMsg += `<b>${item.title}</b>\n` +
+        `💰 Narxi: ${item.price} ${item.currency}\n` +
+        `📍 Manzil: ${item.address || 'Ko\'rsatilmagan'}\n\n`;
 
       await ctx.reply(responseMsg, {
         parse_mode: 'HTML',
         ...Markup.inlineKeyboard([
-          Markup.button.webApp('🔍 Barcha e\'lonlarni ochish', `${process.env.FRONTEND_URL || 'https://frontend-gules-tau-81.vercel.app'}/all-listings`)
+          [Markup.button.webApp('👀 E\'lonni to\'liq ko\'rish', `${process.env.FRONTEND_URL || 'https://frontend-gules-tau-81.vercel.app'}/listing/${item.id}`)],
+          [Markup.button.callback('🔍 Ofline qolganda ham menga topib yubor', `activate_pref_${prefId}`)]
         ])
       });
     } else {
-      responseMsg += `Hozircha bazada aynan bunday e'lon mavjud emas.\n\n` +
-        `🔔 <b>Xavotir olmang!</b> Sizning qidiruv talablaringiz saqlandi. Yangi mos e'lon qo'shilishi bilan sizga Telegram orqali avtomatik xabar yuboraman!`;
-      await ctx.reply(responseMsg, { parse_mode: 'HTML' });
+      responseMsg += `Hozircha bazada aynan bunday e'lon mavjud emas.\n\n`;
+      await ctx.reply(responseMsg, {
+        parse_mode: 'HTML',
+        ...Markup.inlineKeyboard([
+          [Markup.button.callback('🔍 Ofline qolganda ham menga topib yubor', `activate_pref_${prefId}`)]
+        ])
+      });
     }
   } catch (error) {
     console.error('Bot text handling error:', error);
     await ctx.reply('So\'rovingizni qayta ishlashda xatolik bo\'ldi.');
+  }
+});
+
+bot.action(/activate_pref_(.+)/, async (ctx) => {
+  const prefId = ctx.match[1];
+  if (!prefId || prefId === 'null') {
+    return ctx.answerCbQuery('Xatolik: Talab topilmadi.');
+  }
+  try {
+    const { supabase } = await import('./utils/supabase');
+    await supabase.from('user_preferences').update({ is_active: true }).eq('id', prefId);
+    await ctx.answerCbQuery('Faollashtirildi! Yangi e\'lonlar chiqsa yuboramiz.', { show_alert: true });
+    await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
+    await ctx.reply('Sizning qidiruv talablaringiz saqlandi. Yangi mos e\'lon qo\'shilishi bilan sizga avtomatik bitta xabar yuboraman!');
+  } catch (err) {
+    console.error(err);
+    await ctx.answerCbQuery('Xatolik yuz berdi.');
+  }
+});
+
+bot.action(/feedback_useful_(.+)/, async (ctx) => {
+  const prefId = ctx.match[1];
+  try {
+    // Actually, it's already deactivated when sent. So we just acknowledge.
+    await ctx.answerCbQuery('Rahmat! Qidiruv to\'xtatildi.', { show_alert: true });
+    await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
+    await ctx.reply('✅ E\'lon foydali deb topildi. Boshqa reklama yuborilmaydi. Yangi e\'lonlar qidirish uchun istalgan vaqtda yozishingiz mumkin.');
+  } catch (err) {
+    console.error(err);
+  }
+});
+
+bot.action(/feedback_more_(.+)/, async (ctx) => {
+  const prefId = ctx.match[1];
+  try {
+    const { supabase } = await import('./utils/supabase');
+    await supabase.from('user_preferences').update({ is_active: true }).eq('id', prefId);
+    await ctx.answerCbQuery('Yana e\'lonlar qidirilmoqda...', { show_alert: true });
+    await ctx.editMessageReplyMarkup({ inline_keyboard: [] });
+    await ctx.reply('✅ Qidiruv davom ettiriladi. Yana mos e\'lon chiqqanda yuboraman.');
+  } catch (err) {
+    console.error(err);
   }
 });
 
