@@ -31,7 +31,7 @@ async function callOpenRouter(messages, model = OPENROUTER_MODEL, jsonMode = fal
         headers: {
             'Authorization': `Bearer ${OPENROUTER_API_KEY}`,
             'Content-Type': 'application/json',
-            'HTTP-Referer': 'https://frontend-gules-tau-81.vercel.app',
+            'HTTP-Referer': process.env.FRONTEND_URL || 'https://frontend-gules-tau-81.vercel.app',
             'X-Title': 'UyBor Real Estate AI',
         },
         body: JSON.stringify(payload),

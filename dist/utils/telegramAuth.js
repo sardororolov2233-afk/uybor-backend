@@ -21,6 +21,11 @@ function verifyTelegramWebAppData(telegramInitData, botToken) {
         const secret = crypto_1.default.createHmac('sha256', 'WebAppData').update(botToken);
         const _hash = crypto_1.default.createHmac('sha256', secret.digest()).update(dataToCheck.join('\n')).digest('hex');
         if (hash === _hash) {
+            const authDate = parseInt(initData.get('auth_date') || '0', 10);
+            const currentTime = Math.floor(Date.now() / 1000);
+            if (currentTime - authDate > 300) {
+                return null;
+            }
             const user = JSON.parse(initData.get('user') || '{}');
             return user;
         }

@@ -108,12 +108,19 @@ exports.getUserPreferences = getUserPreferences;
 const verifyReceiptPayment = async (req, res) => {
     try {
         const user = req.user;
-        const { receipt_image_url, listing_id, expected_amount } = req.body;
+        const { receipt_image_url, listing_id } = req.body;
+        const PROMOTION_PRICE = 50000;
         if (!receipt_image_url) {
             return res.status(400).json({ error: 'Chek rasmining havolasi (receipt_image_url) kiritilishi shart' });
         }
+        if (listing_id) {
+            const { data: listing } = await supabase_1.supabase.from('listings').select('user_id').eq('id', listing_id).single();
+            if (listing?.user_id !== user.id) {
+                return res.status(403).json({ error: 'Siz faqat o\'zingizning e\'loningizni promout qilishingiz mumkin' });
+            }
+        }
         // AI orqali tekshirish
-        const analysis = await (0, ai_1.verifyPaymentReceipt)(receipt_image_url, expected_amount);
+        const analysis = await (0, ai_1.verifyPaymentReceipt)(receipt_image_url, PROMOTION_PRICE);
         // Bazaga to'lov yozuvini kiritish
         const { data: payment, error } = await supabase_1.supabase
             .from('payments')

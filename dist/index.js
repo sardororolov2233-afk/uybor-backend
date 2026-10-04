@@ -42,12 +42,19 @@ const cors_1 = __importDefault(require("cors"));
 const telegraf_1 = require("telegraf");
 const dotenv_1 = __importDefault(require("dotenv"));
 const api_1 = __importDefault(require("./routes/api"));
+const express_rate_limit_1 = __importDefault(require("express-rate-limit"));
+const morgan_1 = __importDefault(require("morgan"));
+const errorHandler_1 = require("./middlewares/errorHandler");
 dotenv_1.default.config();
 const app = (0, express_1.default)();
-app.use((0, cors_1.default)());
+app.get('/api/health', (req, res) => res.json({ status: 'ok', uptime: process.uptime() }));
+app.use((0, cors_1.default)({ origin: [process.env.FRONTEND_URL || 'https://frontend-gules-tau-81.vercel.app', 'http://localhost:5173'] }));
+app.use((0, morgan_1.default)('dev'));
 app.use(express_1.default.json({ limit: '50mb' }));
-app.use(express_1.default.urlencoded({ limit: '50mb', extended: true }));
+app.use(express_1.default.urlencoded({ limit: '2mb', extended: true }));
+const limiter = (0, express_rate_limit_1.default)({ windowMs: 15 * 60 * 1000, max: 100, message: 'Too many requests' });
 // Main API Routes
+app.use('/api', limiter);
 app.use('/api', api_1.default);
 // --- Telegraf Bot Setup ---
 const botToken = process.env.BOT_TOKEN || 'dummy_token_for_dev';
@@ -57,7 +64,7 @@ exports.bot.start((ctx) => {
         "E'lonlarni ko'rish uchun quyidagi tugmani bosing.", {
         parse_mode: 'HTML',
         ...telegraf_1.Markup.inlineKeyboard([
-            telegraf_1.Markup.button.webApp('Uybor ni ochish', 'https://frontend-gules-tau-81.vercel.app')
+            telegraf_1.Markup.button.webApp('Uybor ni ochish', process.env.FRONTEND_URL || 'https://frontend-gules-tau-81.vercel.app')
         ])
     });
 });
@@ -169,7 +176,7 @@ exports.bot.on('text', async (ctx) => {
             await ctx.reply(responseMsg, {
                 parse_mode: 'HTML',
                 ...telegraf_1.Markup.inlineKeyboard([
-                    telegraf_1.Markup.button.webApp('🔍 Barcha e\'lonlarni ochish', 'https://frontend-gules-tau-81.vercel.app/all-listings')
+                    telegraf_1.Markup.button.webApp('🔍 Barcha e\'lonlarni ochish', `${process.env.FRONTEND_URL || 'https://frontend-gules-tau-81.vercel.app'}/all-listings`)
                 ])
             });
         }
@@ -184,15 +191,17 @@ exports.bot.on('text', async (ctx) => {
         await ctx.reply('So\'rovingizni qayta ishlashda xatolik bo\'ldi.');
     }
 });
+app.use(errorHandler_1.errorHandler);
 exports.bot.launch().then(() => {
     console.log('Telegraf bot launched successfully.');
 }).catch(err => {
     console.log('Telegraf bot launch failed (likely due to dummy token):', err.message);
 });
-process.once('SIGINT', () => exports.bot.stop('SIGINT'));
-process.once('SIGTERM', () => exports.bot.stop('SIGTERM'));
 // --- Start Express Server ---
 const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
     console.log(`Express API is running on port ${PORT}`);
 });
+const shutdown = () => { exports.bot.stop(); server.close(); process.exit(0); };
+process.once('SIGINT', shutdown);
+process.once('SIGTERM', shutdown);
