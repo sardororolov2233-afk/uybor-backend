@@ -100,13 +100,17 @@ export const createListing = async (req: AuthRequest, res: Response) => {
       return res.status(400).json({ error: 'Request body is empty' });
     }
 
-    const { title, description, currency, category, property_type, address, lat, lon } = req.body;
+    const { title, description, currency, category, property_type, address, lat, lon, contact_phone } = req.body;
     
     const price = parseFloat(String(req.body.price).replace(/\s/g, '')) || 0;
     const rooms = parseInt(String(req.body.rooms)) || 1;
     const area = req.body.area ? parseFloat(String(req.body.area)) : null;
     
     const imageUrls = req.body.imageUrls || [];
+
+    if (contact_phone) {
+      await supabase.from('users').update({ phone_number: contact_phone }).eq('id', user_id);
+    }
 
     // Check monthly limit
     const startOfMonth = new Date();
@@ -256,11 +260,15 @@ export const updateListing = async (req: AuthRequest, res: Response) => {
     }
 
     const { title, description, currency, category, property_type,
-            address, lat, lon, status, imageUrls } = req.body;
+            address, lat, lon, status, imageUrls, contact_phone } = req.body;
 
     const price = parseFloat(String(req.body.price).replace(/\s/g, '')) || 0;
     const rooms = parseInt(String(req.body.rooms)) || 1;
     const area = req.body.area ? parseFloat(String(req.body.area)) : null;
+
+    if (contact_phone) {
+      await supabase.from('users').update({ phone_number: contact_phone }).eq('id', user_id);
+    }
 
     if (status && !['ACTIVE', 'ARCHIVED', 'PROMOTED'].includes(status)) {
       return res.status(400).json({ error: 'Invalid status' });
